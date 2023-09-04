@@ -1,0 +1,149 @@
+
+clf;
+
+true_val=get_true_value();
+
+plot(1:1000,true_val(2:1001));
+
+hold on;
+
+vals = get_monte_carlo(2e-5, 1e5);
+plot(1:1000, vals(2:1001));
+
+hold on:
+
+
+
+legend('True Values', 'MC')
+xlabel('State')
+ylabel('Value')
+
+legend('Location','northwest')
+
+% save the figure
+exportgraphics(gca, 'figure.pdf', 'Resolution', 300)
+
+
+
+function val = state_vals(state, true_val)
+    if state < 1
+        val = -1;
+    elseif state > 1000
+        val = 1;
+    else
+        val = true_val(state);
+    end
+end
+
+
+function true_value = get_true_value()
+    error_val = 10;
+    
+    true_value = zeros(1002, 1);
+    true_value(1) = -1;
+    true_value(end) = 1;
+    
+    while error_val > 1e-2
+        old_value = true_value(:);
+        
+        for state=2:1001
+            next_states=[state - 100:state-1,state+1:state+100];
+            state_values = zeros(size(next_states, 2), 1);
+            for i=1:size(next_states, 2)
+                state_values(i) = state_vals(next_states(i), true_value); 
+            end
+            true_value(state) = mean(state_values);
+        end
+        error_val = sum(abs(old_value - true_value));
+    end
+end
+
+
+
+
+function state_values = get_monte_carlo(a, episodes)
+    weights = zeros(10, 1);
+
+    for ep=1:episodes
+ 
+        current_state = 500;
+        episode = [];
+
+        while ~(current_state < 2 || current_state > 1001)
+            next_states=[current_state - 100:current_state-1,current_state+1:current_state+100];
+            next_state = next_states(randi(size(next_states, 2)));
+            
+            episode(end+1) = current_state;
+            current_state = next_state;
+        end
+
+    
+            if current_state < 2
+                final_reward = -1;
+            elseif current_state > 1001
+                final_reward = 1;
+            else
+                final_reward = 0;
+            end
+
+
+        for state=episode
+            ids = floor((state - 2) / 100) + 1;
+            weights(ids) = weights(ids) + a * (final_reward - weights(ids));
+        end
+    end
+
+    
+    state_values = zeros(1002, 1);
+    for state=2:1001
+        state_values(state) = weights(floor((state - 2) / 100) + 1);
+    end
+
+end
+
+function state_values = run_semi_gradient_td_0(alpha, episodes)
+ 
+    weights = zeros(10, 1);
+    
+
+    for ep=1:episodes
+  
+        current_state = 500;
+      
+        while ~(current_state < 2 || current_state > 1001)
+          
+            next_states=[current_state - 100:current_state-1,current_state+1:current_state+100];
+            next_state = next_states(randi(size(next_states, 2)));
+
+        
+            if next_state < 2
+                reward = -1;
+            elseif next_state > 1001
+                reward = 1;
+            else
+                reward = 0;
+            end
+
+         
+            idx = floor((current_state - 2) / 100) + 1;
+
+            
+            w2 = 0;
+            if ~(next_state < 2 || next_state > 1001)is_terminal_state(next_state)
+                w2 = weights(to_partition(next_state));
+            end
+
+           
+            weights(idx) = weights(idx) + alpha * (reward + w2 - weights(idx));
+
+           
+            current_state = next_state;
+        end
+    end
+
+   
+    state_values = zeros(1002, 1);
+    for state=2:1001
+        state_values(state) = weights(to_partition(state));
+    end
+    
